@@ -1,0 +1,17 @@
+mqtt_broker:
+  server: 127.0.0.1
+  port: 1883
+
+mailer:
+  from_name: Daemon
+  from_address: source@example.com
+  to_address: destination@example.com
+  subject: Daemon name
+  smtp:
+    server: 127.0.0.1
+    port: 25
+
+watchdogs:
+  - my/mqtt/topic/+
+alerts:
+  - my/mqtt/topic

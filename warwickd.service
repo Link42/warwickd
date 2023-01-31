@@ -1,0 +1,12 @@
+[Unit]
+Description=warwickd python mqtt broker
+After=multi-user.target
+
+[Service]
+Type=simple
+SyslogIdentifier=warwickd
+WorkingDirectory=/var/lib/warwickd
+ExecStart=/home/git/warwickd/warwickd.py -c /etc/warwickd/config.yaml --log-level debug
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,2 @@
+extra/python-systemd
+community/python-paho-mqtt
