@@ -18,7 +18,7 @@ class mailer:
 		message["Subject"] = self.config['mailer']['subject'] + " " + subject + " - " + datetime.now().strftime("%a %H:%M:%S")
 
 		# Contect to SMTP server and send the mail ^_^
-		server = smtplib.SMTP(self.config['mailer']['smtp']['server'] + ':' + self.config['mailer']['smtp']['port'])
+		server = smtplib.SMTP(self.config['mailer']['smtp']['server'] + ':' + str(self.config['mailer']['smtp']['port']))
 		server.sendmail(self.config['mailer']['from_address'], self.config['mailer']['to_address'], message.as_string())
 		server.quit()
 
