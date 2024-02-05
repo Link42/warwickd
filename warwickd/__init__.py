@@ -20,11 +20,9 @@ class daemon:
 		self.topic_attribute_cache = {}
 
 		# Subscribe to alerts and watchdogs
-		for category in ['alerts', 'watchdogs']:
-			if category in self.config:
-				self.logger.info('Registering ' + category + '...')
-				for subscription in self.config[category]:
-					self.subscribe(subscription)
+		for subscription_parameters in self.config['subscriptions']:
+			self.logger.info('Registering ' + str(subscription_parameters) + '...')
+			self.subscribe(subscription_parameters['topic'])
 
 		# Start the loop
 		self.mqtt_client.on_message = self.message_callback
@@ -46,6 +44,7 @@ class daemon:
 		self.logger.info('Subscribing to topic "' + topic + '"')
 		self.mqtt_client.subscribe(topic)
 
+	# Anyime a message is recieved this function is run
 	def message_callback(self, client, userdata, message):
 		self.logger.debug("Topic '" + message.topic + "' received message '" + message.payload.decode() + "'")
 
@@ -61,13 +60,15 @@ class daemon:
 			self.logger.info("New topic found '" + message.topic + "'")
 			self.topic_attribute_cache[message.topic] = {'flags': [], 'last_received_time': datetime.now()}
 
-			# Check if its a in a special category
-			for category in ['alerts', 'watchdogs']:
-				for subscription in self.config[category]:
-					if mqtt_client.topic_matches_sub(subscription, message.topic):
+			# Check to see if it matches any defined subscriptions
+			for subscription in self.config['subscriptions']:
+				if mqtt_client.topic_matches_sub(subscription['topic'], message.topic):
 
-						self.logger.debug("Flag '" + category + "' cached to topic '" + message.topic + "'")
-						self.topic_attribute_cache[message.topic]['flags'].append(category)
+					# Check special categories
+					for category in ['heartbeat_watchdog', 'mail_alert']:
+						if subscription.get(category):
+							self.logger.debug("Flag '" + category + "' cached to topic '" + message.topic + "'")
+							self.topic_attribute_cache[message.topic]['flags'].append(category)
 
 		# We can only do anything from here if the message is json
 		if message_json is None:
@@ -77,10 +78,10 @@ class daemon:
 		self.topic_attribute_cache[message.topic]['last_received_time'] = datetime.now()
 
 		# Watchdogs
-		if 'watchdogs' in self.topic_attribute_cache[message.topic]['flags']:
+		if 'hearbeat_watchdog' in self.topic_attribute_cache[message.topic]['flags']:
 			self.topic_attribute_cache[message.topic]['uptime'] = message_json['seconds']
 
 		# Alerts
-		if 'alerts' in self.topic_attribute_cache[message.topic]['flags']:
+		if 'mail_alert' in self.topic_attribute_cache[message.topic]['flags']:
 			mailer(self.config, self.logger, "Alert triggered", str(message_json))
-	
+

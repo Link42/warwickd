@@ -11,7 +11,13 @@ mailer:
     server: 127.0.0.1
     port: 25
 
-watchdogs:
-  - my/mqtt/topic/+
-alerts:
-  - my/mqtt/topic
+subscriptions:
+  - topic: my/mqtt/topic1/+
+  - topic: my/mqtt/topic2/+
+		heartbeat_watchdog: true
+  - topic: my/mqtt/topic3
+		mail_alert: true
+
+ntp_service:
+  enabled: true
+  topic: ntp
