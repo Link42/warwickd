@@ -1,6 +1,6 @@
 import logging
 import json
-from typing import Any
+from typing import Any, Dict
 import paho.mqtt.client as mqtt_client
 from paho.mqtt.client import Client
 from datetime import datetime
@@ -14,16 +14,22 @@ logger = logging.getLogger(__name__)
 
 
 class daemon:
-    def __init__(self, config: Config) -> None:
-        self.config = config
+    def __init__(self, config: Dict[str, Any] | Any) -> None:
+        # Attempt to parse the provided config, will attempt a variety of validation checks
+        self.config = self._parse_config(config)
 
-        self.mqtt_broker = config.mqtt_broker.server
-        self.mqtt_port = config.mqtt_broker.port
+        self.mqtt_broker = self.config.mqtt_broker.server
+        self.mqtt_port = self.config.mqtt_broker.port
         self.mqtt_name = gethostname()
         self.mqtt_client = self.connect_mqtt()
         self.topic_attribute_cache = {}
 
-        self.mailer = mailer(config)
+        # Create the mailer class that then can be used anywhere by calling the send_email func
+        self.mailer = mailer(self.config)
+
+    @staticmethod
+    def _parse_config(config) -> Config:
+        return Config.model_validate(config)
 
     def connect_mqtt(self) -> Client:
         def on_connect(client, userdata, flags, reason_code, properties):
