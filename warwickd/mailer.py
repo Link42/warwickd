@@ -36,10 +36,13 @@ class mailer:
         msg = MIMEText("<html><body>" + body + "</body></html>", "html")
 
         try:
-            server = smtplib.SMTP(host=self.server,port=self.port)
-            server.sendmail(from_addr=self.sender_address, to_addrs=recipient_address, msg=msg.as_string())
+            server = smtplib.SMTP(host=self.server, port=self.port)
+            server.sendmail(
+                from_addr=self.sender_address,
+                to_addrs=recipient_address,
+                msg=msg.as_string(),
+            )
             server.quit()
             logger.warning(f"Email sent for '{subject}'")
         except Exception as e:
             logger.error(f"Failed to send email. Error: {str(e)}")
-
