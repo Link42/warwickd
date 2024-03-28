@@ -43,4 +43,4 @@ if __name__ == "__main__":
         config = yaml.safe_load(stream)
 
     # Start this show
-    warwickd.daemon(logger, config)
+    warwickd.daemon(config)
