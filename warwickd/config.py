@@ -5,13 +5,13 @@ from typing import List
 @dataclass
 class Mqtt_broker:
     server: str
-    port: str
+    port: int
 
 
 @dataclass
 class Smtp:
     server: str
-    port: str
+    port: int
 
 
 @dataclass
@@ -31,11 +31,6 @@ class Topic:
 
 
 @dataclass
-class Subscriptions:
-    topics: List[Topic]
-
-
-@dataclass
 class Ntp_service:
     topic: str
     enabled: bool = False
@@ -45,5 +40,5 @@ class Ntp_service:
 class Config:
     mqtt_broker: Mqtt_broker
     mailer: Mailer
-    subscription: Subscriptions
+    subscriptions: List[Topic]
     ntp_service: Ntp_service
