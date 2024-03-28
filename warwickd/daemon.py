@@ -35,7 +35,7 @@ class daemon:
         def on_connect(client, userdata, flags, reason_code, properties):
             if reason_code != 0:
                 logger.info(f"Failed to connect, return code {reason_code}")
-            logger.info(f"Successfully connected to MQTT Broker")
+            logger.info("Successfully connected to MQTT Broker")
 
         # mqtt doesn't explicitly export the CallbackAPIVersion even though it is required
         client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, self.mqtt_name)  # type: ignore
@@ -44,7 +44,7 @@ class daemon:
         return client
 
     def subscribe(self, topic):
-        logger.info(f'Subscribe to topic "' + topic + '"')
+        logger.info('Subscribe to topic "' + topic + '"')
         self.mqtt_client.subscribe(topic)
 
     def message_callback(self, client, userdata, message):
@@ -65,14 +65,20 @@ class daemon:
 
             # Check to see if it matches any defined subscriptions
             for subscription in self.config.subscriptions:
-                if mqtt_client.topic_matches_sub(
-                    subscription.topic, message.topic
-                ):
+                if mqtt_client.topic_matches_sub(subscription.topic, message.topic):
                     if subscription.heartbeat_watchdog or subscription.mail_alert:
-                        category = "heartbeat_watchdog" if subscription.heartbeat_watchdog else "mail_alert"
-                        logger.debug(f"Flag {category} cached to topic '{message.topic}'")
-                        self.topic_attribute_cache.setdefault(message.topic, {"flags": []})["flags"].append(category)
- 
+                        category = (
+                            "heartbeat_watchdog"
+                            if subscription.heartbeat_watchdog
+                            else "mail_alert"
+                        )
+                        logger.debug(
+                            f"Flag {category} cached to topic '{message.topic}'"
+                        )
+                        self.topic_attribute_cache.setdefault(
+                            message.topic, {"flags": []}
+                        )["flags"].append(category)
+
         try:
             message_json = json.loads(message.payload.decode())
         except JSONDecodeError:
@@ -90,4 +96,3 @@ class daemon:
         # Alerts
         if "mail_alert" in self.topic_attribute_cache[message.topic]["flags"]:
             self.mailer.send_email("Alert triggered", str(message_json))
-

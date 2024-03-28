@@ -3,7 +3,6 @@ import logging
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from email.mime.text import MIMEText
-from typing import Any
 
 from warwickd.config import Config
 
