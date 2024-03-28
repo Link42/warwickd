@@ -7,7 +7,7 @@ from datetime import datetime
 from socket import gethostname
 from json import JSONDecodeError
 
-from warwickd.config import Config
+from warwickd.config import Config, Topic
 from warwickd.mailer import mailer
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,18 @@ class daemon:
 
         # Create the mailer class that then can be used anywhere by calling the send_email func
         self.mailer = mailer(self.config)
+        # run on class creation
+        self.run()
+
+    def run(self):
+		# Subscribe to alerts and watchdogs
+        for subscription in self.config.subscriptions:
+            logger.info(f'Registering {subscription.topic}...')
+            self.subscribe(subscription.topic)
+
+        # Start the loop
+        self.mqtt_client.on_message = self.message_callback
+        self.mqtt_client.loop_forever()
 
     @staticmethod
     def _parse_config(config) -> Config:
