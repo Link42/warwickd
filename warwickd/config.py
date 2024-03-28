@@ -1,21 +1,18 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 from typing import List
 
 
-@dataclass
-class Mqtt_broker:
+class Mqtt_broker(BaseModel):
     server: str
     port: int
 
 
-@dataclass
-class Smtp:
+class Smtp(BaseModel):
     server: str
     port: int
 
 
-@dataclass
-class Mailer:
+class Mailer(BaseModel):
     from_name: str
     from_address: str
     to_address: str
@@ -23,21 +20,18 @@ class Mailer:
     smtp: Smtp
 
 
-@dataclass
-class Topic:
+class Topic(BaseModel):
     topic: str
     heartbeat_watchdog: bool = False
     mail_alert: bool = False
 
 
-@dataclass
-class Ntp_service:
+class Ntp_service(BaseModel):
     topic: str
     enabled: bool = False
 
 
-@dataclass
-class Config:
+class Config(BaseModel):
     mqtt_broker: Mqtt_broker
     mailer: Mailer
     subscriptions: List[Topic]
