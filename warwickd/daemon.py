@@ -1,31 +1,38 @@
-import datetime
 import logging
 import json
+from typing import Any
 import paho.mqtt.client as mqtt_client
+from paho.mqtt.client import Client
+from datetime import datetime
 from socket import gethostname
 from json import JSONDecodeError
-from .mailer import mailer
+
+from warwickd.config import Config
+from warwickd.mailer import mailer
 
 logger = logging.getLogger(__name__)
 
 
 class daemon:
-    def __init__(self, config) -> None:
+    def __init__(self, config: Config) -> None:
         self.config = config
 
-        self.mqtt_broker = self.config["mqtt_broker"]["server"]
-        self.mqtt_port = self.config["mqtt_broker"]["port"]
+        self.mqtt_broker = config.mqtt_broker.server
+        self.mqtt_port = config.mqtt_broker.port
         self.mqtt_name = gethostname()
         self.mqtt_client = self.connect_mqtt()
         self.topic_attribute_cache = {}
 
-    def connect_mqtt(self) -> mqtt_client:
+        self.mailer = mailer(config)
+
+    def connect_mqtt(self) -> Client:
         def on_connect(client, userdata, flags, reason_code, properties):
             if reason_code != 0:
                 logger.info(f"Failed to connect, return code {reason_code}")
             logger.info(f"Successfully connected to MQTT Broker")
 
-        client = mqtt_client.Client(self.mqtt_name)
+        # mqtt doesn't explicitly export the CallbackAPIVersion even though it is required
+        client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, self.mqtt_name)  # type: ignore
         client.on_connect = on_connect
         client.connect(self.mqtt_broker, self.mqtt_port)
         return client
@@ -51,25 +58,20 @@ class daemon:
             }
 
             # Check to see if it matches any defined subscriptions
-            for subscription in self.config.get("subscriptions", []):
+            for subscription in self.config.subscriptions:
                 if mqtt_client.topic_matches_sub(
-                    subscription.get("topic", ""), message.topic
+                    subscription.topic, message.topic
                 ):
-                    # Check special categories
-                    for category in ("heartbeat_watchdog", "mail_alert"):
-                        if subscription.get(category):
-                            logger.debug(
-                                f"Flag '{category}' cached to topic '{message.topic}'"
-                            )
-                            self.topic_attribute_cache.setdefault(
-                                message.topic, {"flags": []}
-                            )["flags"].append(category)
-
+                    if subscription.heartbeat_watchdog or subscription.mail_alert:
+                        category = "heartbeat_watchdog" if subscription.heartbeat_watchdog else "mail_alert"
+                        logger.debug(f"Flag {category} cached to topic '{message.topic}'")
+                        self.topic_attribute_cache.setdefault(message.topic, {"flags": []})["flags"].append(category)
+ 
         try:
             message_json = json.loads(message.payload.decode())
         except JSONDecodeError:
             return
-        
+
         # Update topic metadata
         self.topic_attribute_cache[message.topic]["last_received_time"] = datetime.now()
 
@@ -81,4 +83,5 @@ class daemon:
 
         # Alerts
         if "mail_alert" in self.topic_attribute_cache[message.topic]["flags"]:
-            mailer(self.config, self.logger, "Alert triggered", str(message_json))
+            self.mailer.send_email("Alert triggered", str(message_json))
+
