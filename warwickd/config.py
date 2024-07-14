@@ -20,12 +20,6 @@ class Prometheus(BaseModel):
     enabled: bool
     http_port: int
 
-class Topic(BaseModel):
-    topic: str
-    heartbeat_watchdog: bool = False
-    mail_alert: bool = False
-    metric: List = False
-
 class Ntp_service(BaseModel):
     topic: str
     enabled: bool = False
@@ -33,6 +27,6 @@ class Ntp_service(BaseModel):
 class Config(BaseModel):
     mqtt_broker: Mqtt_broker
     mailer: Mailer
-    subscriptions: List[Topic]
+    subscriptions: List
     ntp_service: Ntp_service
     prometheus: Prometheus

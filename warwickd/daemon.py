@@ -6,7 +6,7 @@ from datetime import datetime
 from socket import gethostname
 from json import JSONDecodeError
 
-from warwickd.config import Config, Topic
+from warwickd.config import Config
 from warwickd.mailer import mailer
 from warwickd.prometheus_metrics import prometheus_metrics
 
@@ -35,8 +35,8 @@ class daemon:
     def run(self):
         # Subscribe to alerts and watchdogs
         for subscription in self.config.subscriptions:
-            logger.info(f'Registering {subscription.topic}...')
-            self.subscribe(subscription.topic)
+            logger.info('Registering ' + str(subscription) + '...')
+            self.subscribe(subscription['topic'])
 
         # Start the loop
         self.mqtt_client.on_message = self.message_callback
@@ -67,16 +67,16 @@ class daemon:
 
         if message.topic not in self.topic_attribute_cache:
             logger.info("New topic found '" + message.topic + "'")
-            self.topic_attribute_cache[message.topic] = {"flags": [], "last_received_time": datetime.now(),}
+            self.topic_attribute_cache[message.topic] = {"flags": [], "last_received_time": datetime.now()}
 
             # Check to see if it matches any defined subscriptions
             for subscription in self.config.subscriptions:
-                if mqtt_client.topic_matches_sub(subscription.topic, message.topic):
+                if mqtt_client.topic_matches_sub(subscription['topic'], message.topic):
 
                     # Check special categories
                     for category in ['heartbeat_watchdog', 'mail_alert', 'metric']:
                         if subscription.get(category):
-                            self.logger.debug("Flag '" + category + "' cached to topic '" + message.topic + "'")
+                            logger.debug("Flag '" + category + "' cached to topic '" + message.topic + "'")
                             self.topic_attribute_cache[message.topic]['flags'].append(category)
 
                             # If its a metric we need to cache the parameters
