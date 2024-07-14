@@ -1,8 +1,7 @@
 import logging
 import json
 from typing import Any, Dict
-import paho.mqtt.client as mqtt_client
-from paho.mqtt.client import Client
+from paho.mqtt import client as mqtt_client
 from datetime import datetime
 from socket import gethostname
 from json import JSONDecodeError
@@ -43,7 +42,7 @@ class daemon:
     def _parse_config(config) -> Config:
         return Config.model_validate(config)
 
-    def connect_mqtt(self) -> Client:
+    def connect_mqtt(self) -> mqtt_client.Client:
         def on_connect(client, userdata, flags, reason_code, properties):
             if reason_code != 0:
                 logger.info(f"Failed to connect, return code {reason_code}")
