@@ -1,13 +1,12 @@
 import smtplib
-import logging
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from email.mime.text import MIMEText
 
-from warwickd.config import Config
-
+import logging
 logger = logging.getLogger(__name__)
 
+from warwickd.config import Config
 
 class mailer:
     def __init__(self, config: Config):

@@ -8,15 +8,19 @@ from json import JSONDecodeError
 
 from warwickd.config import Config, Topic
 from warwickd.mailer import mailer
+from warwickd.prometheus_metrics import prometheus_metrics
 
 logger = logging.getLogger(__name__)
-
 
 class daemon:
     def __init__(self, config: Dict[str, Any] | Any) -> None:
         # Attempt to parse the provided config, will attempt a variety of validation checks
         self.config = self._parse_config(config)
 
+        # Prometheus client
+        self.prometheus_client = prometheus_metrics(self.config)
+
+        # MQTT
         self.mqtt_broker = self.config.mqtt_broker.server
         self.mqtt_port = self.config.mqtt_broker.port
         self.mqtt_name = gethostname()
@@ -29,7 +33,7 @@ class daemon:
         self.run()
 
     def run(self):
-		# Subscribe to alerts and watchdogs
+        # Subscribe to alerts and watchdogs
         for subscription in self.config.subscriptions:
             logger.info(f'Registering {subscription.topic}...')
             self.subscribe(subscription.topic)
@@ -59,36 +63,25 @@ class daemon:
         self.mqtt_client.subscribe(topic)
 
     def message_callback(self, client, userdata, message):
-        logger.debug(
-            "Topic '"
-            + message.topic
-            + "' received message '"
-            + message.payload.decode()
-            + "'"
-        )
+        logger.debug("Topic '" + message.topic + "' received message '" + message.payload.decode() + "'")
 
         if message.topic not in self.topic_attribute_cache:
-            logger.info("NEw topic found '" + message.topic + "'")
-            self.topic_attribute_cache[message.topic] = {
-                "flags": [],
-                "last_received_time": datetime.now(),
-            }
+            logger.info("New topic found '" + message.topic + "'")
+            self.topic_attribute_cache[message.topic] = {"flags": [], "last_received_time": datetime.now(),}
 
             # Check to see if it matches any defined subscriptions
             for subscription in self.config.subscriptions:
                 if mqtt_client.topic_matches_sub(subscription.topic, message.topic):
-                    if subscription.heartbeat_watchdog or subscription.mail_alert:
-                        category = (
-                            "heartbeat_watchdog"
-                            if subscription.heartbeat_watchdog
-                            else "mail_alert"
-                        )
-                        logger.debug(
-                            f"Flag {category} cached to topic '{message.topic}'"
-                        )
-                        self.topic_attribute_cache.setdefault(
-                            message.topic, {"flags": []}
-                        )["flags"].append(category)
+
+                    # Check special categories
+                    for category in ['heartbeat_watchdog', 'mail_alert', 'metric']:
+                        if subscription.get(category):
+                            self.logger.debug("Flag '" + category + "' cached to topic '" + message.topic + "'")
+                            self.topic_attribute_cache[message.topic]['flags'].append(category)
+
+                            # If its a metric we need to cache the parameters
+                            if category == 'metric':
+                                self.topic_attribute_cache[message.topic]['metric_parameters'] = subscription['metric']
 
         try:
             message_json = json.loads(message.payload.decode())
