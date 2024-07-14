@@ -1,2 +1,4 @@
-extra/python-systemd
-community/python-paho-mqtt
+paho-mqtt>=2.0.0
+pyaml
+systemd-python
+pydantic

@@ -14,9 +14,9 @@ mailer:
 subscriptions:
   - topic: my/mqtt/topic1/+
   - topic: my/mqtt/topic2/+
-		heartbeat_watchdog: true
+    heartbeat_watchdog: true
   - topic: my/mqtt/topic3
-		mail_alert: true
+    mail_alert: true
 
 ntp_service:
   enabled: true
