@@ -25,7 +25,7 @@ class daemon:
         self.mqtt_port = self.config.mqtt_broker.port
         self.mqtt_name = gethostname()
         self.mqtt_client = self.connect_mqtt()
-        self.topic_attribute_cache = {}
+        self.topic_attribute_cache = {}    # The attribute cache is used to allow caching flags and relating messages to each other
 
         # Create the mailer class that then can be used anywhere by calling the send_email func
         self.mailer = mailer(self.config)
@@ -65,23 +65,31 @@ class daemon:
     def message_callback(self, client, userdata, message):
         logger.debug("Topic '" + message.topic + "' received message '" + message.payload.decode() + "'")
 
+        # If its not in the cache this is the first time we are seeing it, add it to the attribute cache
         if message.topic not in self.topic_attribute_cache:
             logger.info("New topic found '" + message.topic + "'")
             self.topic_attribute_cache[message.topic] = {"flags": [], "last_received_time": datetime.now()}
 
-            # Check to see if it matches any defined subscriptions
+            # Check to see if it matches any subscriptions defined in our config
             for subscription in self.config.subscriptions:
-                if mqtt_client.topic_matches_sub(subscription['topic'], message.topic):
+                if not mqtt_client.topic_matches_sub(subscription['topic'], message.topic):
+                    continue
 
-                    # Check special categories
-                    for category in ['heartbeat_watchdog', 'mail_alert', 'metric']:
-                        if subscription.get(category):
-                            logger.debug("Flag '" + category + "' cached to topic '" + message.topic + "'")
-                            self.topic_attribute_cache[message.topic]['flags'].append(category)
+                # Now check if its a special catagory we have custom actions for
+                for category in ['heartbeat_watchdog', 'mail_alert', 'metric']:
+                    if not subscription.get(category):
+                        continue
 
-                            # If its a metric we need to cache the parameters
-                            if category == 'metric':
-                                self.topic_attribute_cache[message.topic]['metric_parameters'] = subscription['metric']
+                    # Thats a match, start with adding the category as a flag
+                    logger.debug("Flag '" + category + "' cached to topic '" + message.topic + "'")
+                    self.topic_attribute_cache[message.topic]['flags'].append(category)
+
+                    # Metrics cache thier types
+                    if category == 'metric':
+                        self.topic_attribute_cache[message.topic]['metrics'] = []
+                        for metric in subscription['metric']:
+                            logger.debug("New metric '" + message.topic + " - " + str(metric) + ' added to cache')
+                            self.topic_attribute_cache[message.topic]['metrics'].append(metric)
 
         try:
             message_json = json.loads(message.payload.decode())
@@ -93,10 +101,19 @@ class daemon:
 
         # Watchdogs
         if "hearbeat_watchdog" in self.topic_attribute_cache[message.topic]["flags"]:
-            self.topic_attribute_cache[message.topic]["uptime"] = message_json[
-                "seconds"
-            ]
+            self.topic_attribute_cache[message.topic]["uptime"] = message_json["seconds"]
 
         # Alerts
         if "mail_alert" in self.topic_attribute_cache[message.topic]["flags"]:
             self.mailer.send_email("Alert triggered", str(message_json))
+
+        # Metrics are sent to the prometheus client
+        if "metric" in self.topic_attribute_cache[message.topic]["flags"]:
+            try:
+                self.prometheus_client.set_metric(self.topic_attribute_cache[message.topic]['metrics'], message.topic, json.loads(message.payload.decode()))
+            except e:
+                logger.warning('Failed to process metric!')
+                logger.warning(str(e))
+
+
+
