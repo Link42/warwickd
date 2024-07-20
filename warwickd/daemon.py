@@ -111,7 +111,7 @@ class daemon:
         if "metric" in self.topic_attribute_cache[message.topic]["flags"]:
             try:
                 self.prometheus_client.set_metric(self.topic_attribute_cache[message.topic]['metrics'], message.topic, json.loads(message.payload.decode()))
-            except e:
+            except Exception as e:
                 logger.warning('Failed to process metric!')
                 logger.warning(str(e))
 

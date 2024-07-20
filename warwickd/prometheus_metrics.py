@@ -21,7 +21,7 @@ class prometheus_metrics:
 
 		# Create the type of metric required
 		if metric_type == 'gauge':
-			new_metric = Gauge(metric_key, '', ['location'])
+			new_metric = Gauge(metric_key + '_' + metric_location, '', ['location'])
 
 		# All metrics should come with a location
 		new_metric.labels(location=metric_location)
