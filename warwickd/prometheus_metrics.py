@@ -1,6 +1,7 @@
 from prometheus_client import start_http_server, Summary, Gauge
 import random
 import time
+import datetime
 
 import logging
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ class prometheus_metrics:
 		new_metric.labels(location=metric_location)
 
 		# Add to the cache
-		self.metric_cache[metric_location][metric_key] = new_metric
+		self.metric_cache[metric_location][metric_key] = {'metric': new_metric, 'last_reported': datetime.datetime.now()}
 
 	def set_metric(self, metric_schemas, message_topic, metric_data):
 
@@ -50,5 +51,29 @@ class prometheus_metrics:
 				self.create_metric(location, metric['key'], metric['type'])
 
 			# Finally set the value of the metric
-			self.metric_cache[location][metric['key']].labels(location=location).set(float(metric_data[metric['key']]))
+			self.metric_cache[location][metric['key']]['metric'].labels(location=location).set(float(metric_data[metric['key']]))
+			self.metric_cache[location][metric['key']]['last_reported'] = datetime.datetime.now()
+
+	def check_stale_metrics(self):
+		while True:
+
+			# Iterrate through the cache and evict anything stale
+			metrics_to_evict = []
+			for location in self.metric_cache:
+				for metric_name in self.metric_cache[location]:
+
+					# A metric at -1 is already evicted, ignore it
+					if self.metric_cache[location][metric_name]['last_reported'] == -1:
+						continue
+
+					if self.metric_cache[location][metric_name]['last_reported'] < datetime.datetime.now()-datetime.timedelta(seconds=300):
+						logger.warning('Metric ' + location + '/' + metric_name + ' has gone stale, evicting')
+						metrics_to_evict.append((location, metric_name))
+
+			for location, metric_name in metrics_to_evict:
+				self.metric_cache[location][metric_name]['metric'].clear()
+				self.metric_cache[location][metric_name]['last_reported'] = -1
+
+			time.sleep(60)
+
 

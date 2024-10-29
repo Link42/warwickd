@@ -1,5 +1,6 @@
 import logging
 import json
+import threading
 from typing import Any, Dict
 from paho.mqtt import client as mqtt_client
 from datetime import datetime
@@ -27,12 +28,15 @@ class daemon:
         self.mqtt_client = self.connect_mqtt()
         self.topic_attribute_cache = {}    # The attribute cache is used to allow caching flags and relating messages to each other
 
+        # Threads
+        threading.Thread(target=self.prometheus_client.check_stale_metrics).start()
+
         # Create the mailer class that then can be used anywhere by calling the send_email func
         self.mailer = mailer(self.config)
         # run on class creation
-        self.run()
+        self.run_mqtt()
 
-    def run(self):
+    def run_mqtt(self):
         # Subscribe to alerts and watchdogs
         for subscription in self.config.subscriptions:
             logger.info('Registering ' + str(subscription) + '...')
